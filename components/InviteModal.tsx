@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { X, Mail, Copy, Check, Users, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Calendar, CalendarMember } from '@/types/database'
+import { PostgrestError } from '@supabase/supabase-js'
 
 interface InviteModalProps {
   calendar: Calendar
@@ -18,20 +19,17 @@ export default function InviteModal({ calendar, onClose }: InviteModalProps) {
   const [members, setMembers] = useState<CalendarMember[]>([])
   const [copied, setCopied] = useState(false)
 
-  useEffect(() => {
-    fetchMembers()
-  }, [calendar.id])
-
-  const fetchMembers = async () => {
+  const fetchMembers = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('calendar_members')
         .select(`
           *,
-          profiles!calendar_members_user_id_fkey (
+          profiles (
             id,
             full_name,
-            email
+            email,
+            avatar_url
           )
         `)
         .eq('calendar_id', calendar.id)
@@ -42,10 +40,18 @@ export default function InviteModal({ calendar, onClose }: InviteModalProps) {
         ...member,
         profile: member.profiles
       })))
-    } catch (error) {
-      console.error('Error fetching members:', error)
+    } catch (error: unknown) {
+      console.error('Error fetching members:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        details: error instanceof PostgrestError ? error.details : undefined
+      })
     }
-  }
+  }, [calendar.id])
+
+  useEffect(() => {
+    fetchMembers()
+  }, [fetchMembers])
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -184,9 +190,12 @@ export default function InviteModal({ calendar, onClose }: InviteModalProps) {
         // TODO: Implement actual email sending here
         // You can add email sending logic later
       }
-    } catch (error: any) {
-      console.error('Invitation error:', error) // Debug log
-      setMessage(`Error: ${error.message || 'Failed to send invitation'}`)
+    } catch (error: unknown) {
+      console.error('Invitation error:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error'
+      })
+      setMessage(`Error: ${error instanceof Error ? error.message : 'Failed to send invitation'}`)
     } finally {
       setLoading(false)
     }
