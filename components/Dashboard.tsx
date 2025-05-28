@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Calendar, Plus, Users, LogOut } from 'lucide-react'
 import type { Calendar as CalendarType, Profile } from '@/types/database'
@@ -9,7 +9,13 @@ import CreateCalendarModal from './CreateCalendarModal'
 import InviteModal from './InviteModal'
 
 interface DashboardProps {
-  user: any
+  user: {
+    id: string;
+    email?: string;
+    user_metadata?: {
+      full_name?: string;
+    };
+  }
   onSignOut: () => void
 }
 
@@ -21,14 +27,7 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState<Profile | null>(null)
 
-  useEffect(() => {
-    if (user?.id) {
-      fetchProfile()
-      fetchCalendars()
-    }
-  }, [user])
-
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     if (!user?.id) return
     
     try {
@@ -60,9 +59,9 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
     } catch (error) {
       console.error('Error fetching profile:', error)
     }
-  }
+  }, [user])
 
-  const fetchCalendars = async () => {
+  const fetchCalendars = useCallback(async () => {
     if (!user?.id) {
       console.error('No user ID for fetching calendars')
       return
@@ -114,17 +113,7 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
         `)
         .eq('user_id', user.id)
 
-      console.log('Fetch calendars result:', { data, error })
-
-      if (error) {
-        console.error('Fetch calendars error details:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        })
-        throw error
-      }
+      if (error) throw error
 
       const formattedCalendars: CalendarType[] = (data as unknown as CalendarMemberWithCalendar[]).map(item => ({
         id: item.calendars.id,
@@ -133,25 +122,29 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
         color: item.calendars.color,
         created_by: item.calendars.created_by,
         created_at: item.calendars.created_at,
-        updated_at: item.calendars.created_at, // Use created_at as updated_at since it's not in the query
+        updated_at: item.calendars.created_at,
         user_role: item.role,
         creator_profile: item.calendars.profiles
       }))
 
-      console.log('Formatted calendars:', formattedCalendars)
       setCalendars(formattedCalendars)
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error fetching calendars:', {
         error,
-        message: error?.message,
-        details: error?.details,
-        hint: error?.hint,
-        code: error?.code
+        message: error instanceof Error ? error.message : 'Unknown error',
+        details: error instanceof Error ? error.stack : undefined
       })
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchProfile()
+      fetchCalendars()
+    }
+  }, [user, fetchProfile, fetchCalendars])
 
   const handleCreateCalendar = async (name: string, description: string, color: string) => {
     if (!user?.id) {
@@ -226,16 +219,13 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
       console.log('Member created successfully, fetching calendars...')
       await fetchCalendars()
       setShowCreateModal(false)
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Full error creating calendar:', {
         error,
-        message: error?.message,
-        details: error?.details,
-        hint: error?.hint,
-        code: error?.code,
-        stack: error?.stack
+        message: error instanceof Error ? error.message : 'Unknown error',
+        details: error instanceof Error ? error.stack : undefined
       })
-      alert(`Error creating calendar: ${error?.message || 'Unknown error'}`)
+      alert(`Error creating calendar: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 

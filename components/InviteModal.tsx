@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { X, Mail, Copy, Check, Users, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Calendar, CalendarMember } from '@/types/database'
@@ -18,11 +18,7 @@ export default function InviteModal({ calendar, onClose }: InviteModalProps) {
   const [members, setMembers] = useState<CalendarMember[]>([])
   const [copied, setCopied] = useState(false)
 
-  useEffect(() => {
-    fetchMembers()
-  }, [calendar.id])
-
-  const fetchMembers = async () => {
+  const fetchMembers = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('calendar_members')
@@ -45,7 +41,11 @@ export default function InviteModal({ calendar, onClose }: InviteModalProps) {
     } catch (error) {
       console.error('Error fetching members:', error)
     }
-  }
+  }, [calendar.id])
+
+  useEffect(() => {
+    fetchMembers()
+  }, [fetchMembers])
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -115,8 +115,8 @@ export default function InviteModal({ calendar, onClose }: InviteModalProps) {
           setEmail('')
         }
       }
-    } catch (error: any) {
-      setMessage(error.message || 'Failed to send invitation')
+    } catch (error: Error | unknown) {
+      setMessage(error instanceof Error ? error.message : 'Failed to send invitation')
     } finally {
       setLoading(false)
     }

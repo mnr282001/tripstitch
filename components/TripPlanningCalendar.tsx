@@ -4,9 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import AuthForm from './AuthForm';
 import Dashboard from './Dashboard';
+import type { User } from '@supabase/supabase-js'
 
 const TripPlanningCalendar = () => {
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {

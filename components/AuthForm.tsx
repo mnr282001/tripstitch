@@ -47,8 +47,8 @@ export default function AuthForm({ onAuthSuccess }: AuthFormProps) {
           onAuthSuccess()
         }
       }
-    } catch (error: any) {
-      setMessage(error.message)
+    } catch (error: Error | unknown) {
+      setMessage(error instanceof Error ? error.message : 'An error occurred')
     } finally {
       setLoading(false)
     }
