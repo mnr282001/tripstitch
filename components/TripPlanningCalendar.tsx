@@ -1,6 +1,6 @@
 "use client"
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, Users, Plus, X, Edit3 } from 'lucide-react';
+import { Calendar, Clock, Users, Plus, X } from 'lucide-react';
 
 interface Event {
   id: string;  // UUID
@@ -20,7 +20,6 @@ const TripPlanningCalendar = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<Event[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [newEvent, setNewEvent] = useState<Omit<Event, 'id' | 'created_at'>>({
     title: '',
     description: '',
@@ -159,7 +158,6 @@ const TripPlanningCalendar = () => {
   const handleDateClick = (day: number | null) => {
     if (!day) return;
     const clickedDate = formatDateForInput(new Date(currentDate.getFullYear(), currentDate.getMonth(), day));
-    setSelectedDate(clickedDate);
     setNewEvent(prev => ({ ...prev, start_date: clickedDate }));
     setShowAddModal(true);
   };
