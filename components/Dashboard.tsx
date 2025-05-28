@@ -63,30 +63,14 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
   }
 
   const fetchCalendars = async () => {
-    if (!user?.id) return
+    if (!user?.id) {
+      console.error('No user ID for fetching calendars')
+      return
+    }
     
-    try {
-      type CalendarMemberWithCalendar = {
-        role: 'owner' | 'editor' | 'viewer';
-        calendars: {
-          id: string;
-          name: string;
-          description: string | null;
-          color: string;
-          created_by: string;
-          created_at: string;
-          updated_at: string;
-          profiles: {
-            id: string;
-            full_name: string;
-            email: string;
-            avatar_url: string | null;
-            created_at: string;
-            updated_at: string;
-          };
-        };
-      };
+    console.log('Fetching calendars for user:', user.id)
 
+    try {
       const { data, error } = await supabase
         .from('calendar_members')
         .select(`
@@ -98,74 +82,131 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
             color,
             created_by,
             created_at,
-            updated_at,
             profiles!calendars_created_by_fkey (
               id,
               full_name,
-              email,
-              avatar_url,
-              created_at,
-              updated_at
+              email
             )
           )
         `)
         .eq('user_id', user.id)
 
-      if (error) throw error
+      console.log('Fetch calendars result:', { data, error })
 
-      const formattedCalendars: CalendarType[] = (data as unknown as CalendarMemberWithCalendar[]).map(item => ({
-        id: item.calendars.id,
-        name: item.calendars.name,
-        description: item.calendars.description,
-        color: item.calendars.color,
-        created_by: item.calendars.created_by,
-        created_at: item.calendars.created_at,
-        updated_at: item.calendars.updated_at,
+      if (error) {
+        console.error('Fetch calendars error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        })
+        throw error
+      }
+
+      const formattedCalendars = data.map(item => ({
+        ...item.calendars,
         user_role: item.role,
         creator_profile: item.calendars.profiles
       }))
 
+      console.log('Formatted calendars:', formattedCalendars)
       setCalendars(formattedCalendars)
-    } catch (error) {
-      console.error('Error fetching calendars:', error)
+    } catch (error: any) {
+      console.error('Error fetching calendars:', {
+        error,
+        message: error?.message,
+        details: error?.details,
+        hint: error?.hint,
+        code: error?.code
+      })
     } finally {
       setLoading(false)
     }
   }
 
   const handleCreateCalendar = async (name: string, description: string, color: string) => {
-    if (!user?.id) return
+    if (!user?.id) {
+      console.error('No user ID available')
+      return
+    }
+
+    console.log('Attempting to create calendar:', { name, description, color, user_id: user.id })
 
     try {
+      // First, let's check if we can access the calendars table at all
+      const { data: testData, error: testError } = await supabase
+        .from('calendars')
+        .select('id')
+        .limit(1)
+
+      console.log('Test query result:', { testData, testError })
+
       // Create calendar
       const { data: calendar, error: calendarError } = await supabase
         .from('calendars')
         .insert({
           name,
-          description,
+          description: description || null,
           color,
           created_by: user.id
         })
         .select()
         .single()
 
-      if (calendarError) throw calendarError
+      console.log('Calendar insert result:', { calendar, calendarError })
+
+      if (calendarError) {
+        console.error('Calendar creation failed:', {
+          message: calendarError.message,
+          details: calendarError.details,
+          hint: calendarError.hint,
+          code: calendarError.code
+        })
+        throw calendarError
+      }
+
+      if (!calendar) {
+        throw new Error('Calendar was not created - no data returned')
+      }
+
+      console.log('Calendar created successfully:', calendar)
 
       // Add creator as owner
-      const { error: memberError } = await supabase
+      const { data: member, error: memberError } = await supabase
         .from('calendar_members')
         .insert({
           calendar_id: calendar.id,
           user_id: user.id,
           role: 'owner'
         })
+        .select()
+        .single()
 
-      if (memberError) throw memberError
+      console.log('Member insert result:', { member, memberError })
 
+      if (memberError) {
+        console.error('Member creation failed:', {
+          message: memberError.message,
+          details: memberError.details,
+          hint: memberError.hint,
+          code: memberError.code
+        })
+        throw memberError
+      }
+
+      console.log('Member created successfully, fetching calendars...')
       await fetchCalendars()
       setShowCreateModal(false)
-    } catch (error) {
-      console.error('Error creating calendar:', error)
+    } catch (error: any) {
+      console.error('Full error creating calendar:', {
+        error,
+        message: error?.message,
+        details: error?.details,
+        hint: error?.hint,
+        code: error?.code,
+        stack: error?.stack
+      })
+      alert(`Error creating calendar: ${error?.message || 'Unknown error'}`)
     }
   }
 
