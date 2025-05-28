@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import AuthForm from './AuthForm';
 import Dashboard from './Dashboard';
 import type { User } from '@supabase/supabase-js'
+import type { Profile } from '@/types/database'
 
 const TripPlanningCalendar = () => {
   const [user, setUser] = useState<User | null>(null)
@@ -48,7 +49,16 @@ const TripPlanningCalendar = () => {
     return <AuthForm onAuthSuccess={() => {}} />
   }
 
-  return <Dashboard user={user} onSignOut={handleSignOut} />
+  const profile: Profile = {
+    id: user.id,
+    email: user.email || '',
+    full_name: user.user_metadata?.full_name || null,
+    avatar_url: user.user_metadata?.avatar_url || null,
+    created_at: user.created_at || new Date().toISOString(),
+    updated_at: user.updated_at || new Date().toISOString()
+  }
+
+  return <Dashboard user={profile} onSignOut={handleSignOut} />
 }
 
 export default TripPlanningCalendar;
