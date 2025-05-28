@@ -1,24 +1,83 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TripStitch 🌎✈️
 
-## Getting Started
+TripStitch is a modern, collaborative trip planning platform that helps you and your travel companions seamlessly coordinate your adventures together. Built with Next.js and Supabase, it provides an intuitive interface for planning trips, managing itineraries, and coordinating with friends and family.
 
-First, run the development server:
+## ✨ Features
 
+- **Collaborative Calendar**: Create and share trip calendars with friends and family
+- **Role-Based Access**: Invite others as editors or viewers to manage permissions
+- **Multi-Day Events**: Plan activities that span multiple days
+- **Real-Time Updates**: See changes as they happen with live updates
+- **User Authentication**: Secure sign-up and login system
+- **Responsive Design**: Works seamlessly on desktop and mobile devices
+- **Dark Mode Support**: Automatically adapts to your system preferences
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Node.js 18.x or later
+- npm, yarn, or pnpm
+- A Supabase account (for backend services)
+
+### Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/tripstitch.git
+cd tripstitch
+```
+
+2. Install dependencies:
+```bash
+npm install
+# or
+yarn install
+# or
+pnpm install
+```
+
+3. Set up environment variables:
+Create a `.env.local` file in the root directory with your Supabase credentials:
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+4. Run the development server:
 ```bash
 npm run dev
 # or
 yarn dev
 # or
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+5. Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🛠️ Tech Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Frontend**: Next.js 15, React 19, TypeScript
+- **Styling**: Tailwind CSS
+- **Authentication**: Supabase Auth
+- **Database**: Supabase
+- **Icons**: Lucide React
+- **Font**: Geist (by Vercel)
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Built with [Next.js](https://nextjs.org)
+- Authentication powered by [Supabase](https://supabase.com)
+- Icons from [Lucide](https://lucide.dev)
+- Font by [Vercel](https://vercel.com/font)
 
 ## Learn More
 
