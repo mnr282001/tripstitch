@@ -71,6 +71,26 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
     console.log('Fetching calendars for user:', user.id)
 
     try {
+      type CalendarMemberWithCalendar = {
+        role: 'owner' | 'editor' | 'viewer';
+        calendars: {
+          id: string;
+          name: string;
+          description: string | null;
+          color: string;
+          created_by: string;
+          created_at: string;
+          profiles: {
+            id: string;
+            full_name: string;
+            email: string;
+            avatar_url: string | null;
+            created_at: string;
+            updated_at: string;
+          };
+        };
+      };
+
       const { data, error } = await supabase
         .from('calendar_members')
         .select(`
@@ -85,7 +105,10 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
             profiles!calendars_created_by_fkey (
               id,
               full_name,
-              email
+              email,
+              avatar_url,
+              created_at,
+              updated_at
             )
           )
         `)
@@ -103,8 +126,14 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
         throw error
       }
 
-      const formattedCalendars = data.map(item => ({
-        ...item.calendars,
+      const formattedCalendars: CalendarType[] = (data as unknown as CalendarMemberWithCalendar[]).map(item => ({
+        id: item.calendars.id,
+        name: item.calendars.name,
+        description: item.calendars.description,
+        color: item.calendars.color,
+        created_by: item.calendars.created_by,
+        created_at: item.calendars.created_at,
+        updated_at: item.calendars.created_at, // Use created_at as updated_at since it's not in the query
         user_role: item.role,
         creator_profile: item.calendars.profiles
       }))
