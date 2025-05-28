@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Calendar, Plus, Users, LogOut } from 'lucide-react'
 import type { Calendar as CalendarType, Profile } from '@/types/database'
@@ -9,13 +9,7 @@ import CreateCalendarModal from './CreateCalendarModal'
 import InviteModal from './InviteModal'
 
 interface DashboardProps {
-  user: {
-    id: string;
-    email?: string;
-    user_metadata?: {
-      full_name?: string;
-    };
-  }
+  user: any
   onSignOut: () => void
 }
 
@@ -27,7 +21,14 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState<Profile | null>(null)
 
-  const fetchProfile = useCallback(async () => {
+  useEffect(() => {
+    if (user?.id) {
+      fetchProfile()
+      fetchCalendars()
+    }
+  }, [user])
+
+  const fetchProfile = async () => {
     if (!user?.id) return
     
     try {
@@ -59,9 +60,9 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
     } catch (error) {
       console.error('Error fetching profile:', error)
     }
-  }, [user])
+  }
 
-  const fetchCalendars = useCallback(async () => {
+  const fetchCalendars = async () => {
     if (!user?.id) {
       console.error('No user ID for fetching calendars')
       return
@@ -81,7 +82,7 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
           created_at: string;
           profiles: {
             id: string;
-            full_name: string;
+            full_name: string | null;
             email: string;
             avatar_url: string | null;
             created_at: string;
@@ -113,7 +114,33 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
         `)
         .eq('user_id', user.id)
 
-      if (error) throw error
+      console.log('Fetch calendars result:', { data, error })
+
+      if (error) {
+        console.error('Fetch calendars error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        })
+        throw error
+      }
+
+      // Get member counts for each calendar
+      const calendarIds = (data as unknown as CalendarMemberWithCalendar[]).map(item => item.calendars.id)
+      const { data: memberCounts, error: countError } = await supabase
+        .from('calendar_members')
+        .select('calendar_id')
+        .in('calendar_id', calendarIds)
+
+      if (countError) throw countError
+
+      // Count members manually
+      const memberCountMap = new Map<string, number>()
+      ;(memberCounts as { calendar_id: string }[]).forEach(item => {
+        const currentCount = memberCountMap.get(item.calendar_id) || 0
+        memberCountMap.set(item.calendar_id, currentCount + 1)
+      })
 
       const formattedCalendars: CalendarType[] = (data as unknown as CalendarMemberWithCalendar[]).map(item => ({
         id: item.calendars.id,
@@ -124,27 +151,24 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
         created_at: item.calendars.created_at,
         updated_at: item.calendars.created_at,
         user_role: item.role,
-        creator_profile: item.calendars.profiles
+        creator_profile: item.calendars.profiles,
+        member_count: memberCountMap.get(item.calendars.id) || 1
       }))
 
+      console.log('Formatted calendars:', formattedCalendars)
       setCalendars(formattedCalendars)
-    } catch (error: Error | unknown) {
+    } catch (error: any) {
       console.error('Error fetching calendars:', {
         error,
-        message: error instanceof Error ? error.message : 'Unknown error',
-        details: error instanceof Error ? error.stack : undefined
+        message: error?.message,
+        details: error?.details,
+        hint: error?.hint,
+        code: error?.code
       })
     } finally {
       setLoading(false)
     }
-  }, [user])
-
-  useEffect(() => {
-    if (user?.id) {
-      fetchProfile()
-      fetchCalendars()
-    }
-  }, [user, fetchProfile, fetchCalendars])
+  }
 
   const handleCreateCalendar = async (name: string, description: string, color: string) => {
     if (!user?.id) {
@@ -219,13 +243,16 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
       console.log('Member created successfully, fetching calendars...')
       await fetchCalendars()
       setShowCreateModal(false)
-    } catch (error: Error | unknown) {
+    } catch (error: any) {
       console.error('Full error creating calendar:', {
         error,
-        message: error instanceof Error ? error.message : 'Unknown error',
-        details: error instanceof Error ? error.stack : undefined
+        message: error?.message,
+        details: error?.details,
+        hint: error?.hint,
+        code: error?.code,
+        stack: error?.stack
       })
-      alert(`Error creating calendar: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      alert(`Error creating calendar: ${error?.message || 'Unknown error'}`)
     }
   }
 
@@ -251,7 +278,6 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
         calendar={selectedCalendar}
         user={user}
         onBack={() => setSelectedCalendar(null)}
-        onInvite={() => setShowInviteModal(true)}
       />
     )
   }
@@ -357,7 +383,7 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
                     </span>
                     <div className="flex items-center gap-1">
                       <Users className="h-4 w-4" />
-                      <span>1</span>
+                      <span>{calendar.member_count || 1}</span>
                     </div>
                   </div>
                 </div>

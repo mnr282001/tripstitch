@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Mail, Copy, Check, Users, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Calendar, CalendarMember } from '@/types/database'
@@ -18,7 +18,11 @@ export default function InviteModal({ calendar, onClose }: InviteModalProps) {
   const [members, setMembers] = useState<CalendarMember[]>([])
   const [copied, setCopied] = useState(false)
 
-  const fetchMembers = useCallback(async () => {
+  useEffect(() => {
+    fetchMembers()
+  }, [calendar.id])
+
+  const fetchMembers = async () => {
     try {
       const { data, error } = await supabase
         .from('calendar_members')
@@ -41,35 +45,60 @@ export default function InviteModal({ calendar, onClose }: InviteModalProps) {
     } catch (error) {
       console.error('Error fetching members:', error)
     }
-  }, [calendar.id])
-
-  useEffect(() => {
-    fetchMembers()
-  }, [fetchMembers])
+  }
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email.trim()) return
+    if (!email.trim()) {
+      setMessage('Please enter an email address')
+      return
+    }
 
     setLoading(true)
     setMessage('')
 
+    console.log('Starting invite process for:', email.trim()) // Debug log
+
     try {
-      // Check if user already exists
-      const { data: existingUser } = await supabase
+      // Get current user info
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      if (!currentUser) {
+        throw new Error('Not authenticated')
+      }
+
+      console.log('Current user:', currentUser.id) // Debug log
+
+      const emailToInvite = email.trim().toLowerCase()
+
+      // Check if user already exists in our system
+      const { data: existingUser, error: userCheckError } = await supabase
         .from('profiles')
         .select('id')
-        .eq('email', email.trim().toLowerCase())
-        .single()
+        .eq('email', emailToInvite)
+        .maybeSingle() // Use maybeSingle to avoid errors when no user found
+
+      console.log('Existing user check:', { existingUser, userCheckError }) // Debug log
+
+      if (userCheckError && userCheckError.code !== 'PGRST116') {
+        throw userCheckError
+      }
 
       if (existingUser) {
+        console.log('User exists, checking membership...') // Debug log
+        
         // Check if already a member
-        const { data: existingMember } = await supabase
+        const { data: existingMember, error: memberCheckError } = await supabase
           .from('calendar_members')
           .select('id')
           .eq('calendar_id', calendar.id)
           .eq('user_id', existingUser.id)
-          .single()
+          .maybeSingle()
+
+        console.log('Member check:', { existingMember, memberCheckError }) // Debug log
+
+        if (memberCheckError && memberCheckError.code !== 'PGRST116') {
+          throw memberCheckError
+        }
 
         if (existingMember) {
           setMessage('This user is already a member of this calendar')
@@ -77,7 +106,7 @@ export default function InviteModal({ calendar, onClose }: InviteModalProps) {
         }
 
         // Add directly as member
-        const { error } = await supabase
+        const { error: addMemberError } = await supabase
           .from('calendar_members')
           .insert({
             calendar_id: calendar.id,
@@ -85,38 +114,79 @@ export default function InviteModal({ calendar, onClose }: InviteModalProps) {
             role
           })
 
-        if (error) throw error
+        if (addMemberError) throw addMemberError
 
         setMessage('User added successfully!')
         await fetchMembers()
         setEmail('')
       } else {
-        // Create invitation
-        const { data: user } = await supabase.auth.getUser()
-        if (!user.user) throw new Error('Not authenticated')
+        console.log('Creating new invitation...') // Debug log
+        
+        // Create invitation record first
+        const inviteToken = crypto.randomUUID()
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+        
+        console.log('Invitation details:', { 
+          calendar_id: calendar.id, 
+          email: emailToInvite, 
+          role, 
+          invited_by: currentUser.id,
+          token: inviteToken,
+          expires_at: expiresAt
+        }) // Debug log
 
-        const { error } = await supabase
+        const { data: invitation, error: inviteError } = await supabase
           .from('calendar_invitations')
           .insert({
             calendar_id: calendar.id,
-            email: email.trim().toLowerCase(),
+            email: emailToInvite,
             role,
-            invited_by: user.user.id
+            invited_by: currentUser.id,
+            token: inviteToken,
+            expires_at: expiresAt
           })
+          .select()
+          .single()
 
-        if (error) {
-          if (error.code === '23505') { // Unique violation
-            setMessage('An invitation has already been sent to this email')
+        console.log('Invitation creation result:', { invitation, inviteError }) // Debug log
+
+        if (inviteError) {
+          if (inviteError.code === '23505') {
+            // Check if there's an existing non-expired invitation
+            const { data: existingInvite } = await supabase
+              .from('calendar_invitations')
+              .select('token, expires_at')
+              .eq('calendar_id', calendar.id)
+              .eq('email', emailToInvite)
+              .is('accepted_at', null)
+              .single()
+
+            if (existingInvite && new Date(existingInvite.expires_at) > new Date()) {
+              const inviteUrl = `${window.location.origin}/invite/accept/${existingInvite.token}`
+              setMessage(`An invitation has already been sent to this email. Share this link: ${inviteUrl}`)
+            } else {
+              setMessage('An old invitation exists. Please try again or contact support.')
+            }
           } else {
-            throw error
+            throw inviteError
           }
-        } else {
-          setMessage('Invitation sent! They will receive an email to join.')
-          setEmail('')
+          return
         }
+
+        // Create the invitation URL
+        const inviteUrl = `${window.location.origin}/invite/accept/${inviteToken}`
+        console.log('Invite URL:', inviteUrl) // Debug log
+
+        // For now, just show the link since email sending might not be set up
+        setMessage(`Invitation created! Share this link: ${inviteUrl}`)
+        setEmail('')
+
+        // TODO: Implement actual email sending here
+        // You can add email sending logic later
       }
-    } catch (error: Error | unknown) {
-      setMessage(error instanceof Error ? error.message : 'Failed to send invitation')
+    } catch (error: any) {
+      console.error('Invitation error:', error) // Debug log
+      setMessage(`Error: ${error.message || 'Failed to send invitation'}`)
     } finally {
       setLoading(false)
     }
@@ -203,6 +273,7 @@ export default function InviteModal({ calendar, onClose }: InviteModalProps) {
                 className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Enter email address"
                 required
+                disabled={loading}
               />
             </div>
             
@@ -214,6 +285,7 @@ export default function InviteModal({ calendar, onClose }: InviteModalProps) {
                 value={role}
                 onChange={(e) => setRole(e.target.value as 'editor' | 'viewer')}
                 className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={loading}
               >
                 <option value="editor">Editor - Can add and edit events</option>
                 <option value="viewer">Viewer - Can only view events</option>
@@ -231,7 +303,7 @@ export default function InviteModal({ calendar, onClose }: InviteModalProps) {
 
             {message && (
               <div className={`p-3 rounded-lg text-sm ${
-                message.includes('successfully') || message.includes('sent')
+                message.includes('successfully') || message.includes('created')
                   ? 'bg-green-50 text-green-700' 
                   : 'bg-red-50 text-red-700'
               }`}>
