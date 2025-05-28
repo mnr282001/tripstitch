@@ -1,19 +1,47 @@
 // app/invite/accept/[token]/page.tsx
 "use client"
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Calendar, CheckCircle, XCircle, Users, Mail, Lock, User, ArrowRight } from 'lucide-react'
 
 // Import Supabase only on client-side
 import { supabase } from '@/lib/supabase'
 
+interface Invitation {
+  id: string
+  token: string
+  email: string
+  role: 'editor' | 'viewer'
+  calendar_id: string
+  accepted_at: string | null
+  expires_at: string
+  calendars: {
+    id: string
+    name: string
+    description: string | null
+    color: string
+  }
+  profiles: {
+    full_name: string | null
+    email: string
+  } | null
+}
+
+interface UserProfile {
+  id: string
+  email: string
+  user_metadata?: {
+    full_name?: string
+  }
+}
+
 export default function AcceptInvite() {
   const params = useParams()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
-  const [invitation, setInvitation] = useState<any>(null)
-  const [user, setUser] = useState<any>(null)
+  const [invitation, setInvitation] = useState<Invitation | null>(null)
+  const [user, setUser] = useState<UserProfile | null>(null)
   const [message, setMessage] = useState('')
   const [success, setSuccess] = useState(false)
   const [showSignUp, setShowSignUp] = useState(false)
@@ -23,15 +51,7 @@ export default function AcceptInvite() {
     fullName: ''
   })
 
-  useEffect(() => {
-    // Only run on client-side
-    if (typeof window !== 'undefined') {
-      checkInvitation()
-      checkUser()
-    }
-  }, [params.token])
-
-  const checkInvitation = async () => {
+  const checkInvitation = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('calendar_invitations')
@@ -55,19 +75,36 @@ export default function AcceptInvite() {
 
       if (error) throw error
       
-      setInvitation(data)
+      setInvitation(data as Invitation)
       setSignUpData(prev => ({ ...prev, email: data.email }))
     } catch (error) {
-      setMessage('Invalid or expired invitation link')
+      setMessage('Invalid or expired invitation link: ' + error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [params.token])
 
-  const checkUser = async () => {
+  const checkUser = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession()
-    setUser(session?.user || null)
-  }
+    if (session?.user) {
+      const userProfile: UserProfile = {
+        id: session.user.id,
+        email: session.user.email || '',
+        user_metadata: session.user.user_metadata
+      }
+      setUser(userProfile)
+    } else {
+      setUser(null)
+    }
+  }, [])
+
+  useEffect(() => {
+    // Only run on client-side
+    if (typeof window !== 'undefined') {
+      checkInvitation()
+      checkUser()
+    }
+  }, [checkInvitation, checkUser])
 
   const acceptInvitation = async () => {
     if (!user || !invitation) return
@@ -122,9 +159,9 @@ export default function AcceptInvite() {
         router.push('/')
       }, 3000)
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Accept invitation error:', error)
-      setMessage(error.message || 'Failed to accept invitation')
+      setMessage(error instanceof Error ? error.message : 'Failed to accept invitation')
     } finally {
       setLoading(false)
     }
@@ -152,13 +189,18 @@ export default function AcceptInvite() {
       if (error) throw error
 
       if (data.user && data.session) {
-        setUser(data.user)
+        const userProfile: UserProfile = {
+          id: data.user.id,
+          email: data.user.email || '',
+          user_metadata: data.user.user_metadata
+        }
+        setUser(userProfile)
         await acceptInvitation()
       } else {
         setMessage('Please check your email to verify your account, then return to this page.')
       }
-    } catch (error: any) {
-      setMessage(error.message || 'Failed to create account')
+    } catch (error: unknown) {
+      setMessage(error instanceof Error ? error.message : 'Failed to create account')
     } finally {
       setLoading(false)
     }
@@ -265,7 +307,7 @@ export default function AcceptInvite() {
                   Sign In to TripStitch
                 </button>
                 <div className="text-center">
-                  <span className="text-gray-500 text-sm">Don't have an account? </span>
+                  <span className="text-gray-500 text-sm">Don&apos;t have an account? </span>
                   <button
                     onClick={() => setShowSignUp(true)}
                     className="text-blue-600 text-sm font-medium hover:text-blue-700"
