@@ -1,15 +1,16 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Calendar, Plus, Users, LogOut } from 'lucide-react'
 import type { Calendar as CalendarType, Profile } from '@/types/database'
 import CalendarView from './CalendarView'
 import CreateCalendarModal from './CreateCalendarModal'
 import InviteModal from './InviteModal'
+import { PostgrestError } from '@supabase/supabase-js'
 
 interface DashboardProps {
-  user: any
+  user: Profile
   onSignOut: () => void
 }
 
@@ -21,14 +22,7 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState<Profile | null>(null)
 
-  useEffect(() => {
-    if (user?.id) {
-      fetchProfile()
-      fetchCalendars()
-    }
-  }, [user])
-
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     if (!user?.id) return
     
     try {
@@ -45,7 +39,7 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
           .insert({
             id: user.id,
             email: user.email,
-            full_name: user.user_metadata?.full_name || user.email
+            full_name: user?.full_name || user.email
           })
           .select()
           .single()
@@ -60,9 +54,9 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
     } catch (error) {
       console.error('Error fetching profile:', error)
     }
-  }
+  }, [user?.id, user?.email, user?.full_name])
 
-  const fetchCalendars = async () => {
+  const fetchCalendars = useCallback(async () => {
     if (!user?.id) {
       console.error('No user ID for fetching calendars')
       return
@@ -157,18 +151,25 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
 
       console.log('Formatted calendars:', formattedCalendars)
       setCalendars(formattedCalendars)
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching calendars:', {
         error,
-        message: error?.message,
-        details: error?.details,
-        hint: error?.hint,
-        code: error?.code
+        message: error instanceof Error ? error.message : 'Unknown error',
+        details: error instanceof PostgrestError ? error.details : undefined,
+        hint: error instanceof PostgrestError ? error.hint : undefined,
+        code: error instanceof PostgrestError ? error.code : undefined
       })
     } finally {
       setLoading(false)
     }
-  }
+  }, [user?.id])
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchProfile()
+      fetchCalendars()
+    }
+  }, [user?.id, fetchProfile, fetchCalendars])
 
   const handleCreateCalendar = async (name: string, description: string, color: string) => {
     if (!user?.id) {
@@ -243,16 +244,16 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
       console.log('Member created successfully, fetching calendars...')
       await fetchCalendars()
       setShowCreateModal(false)
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Full error creating calendar:', {
         error,
-        message: error?.message,
-        details: error?.details,
-        hint: error?.hint,
-        code: error?.code,
-        stack: error?.stack
+        message: error instanceof Error ? error.message : 'Unknown error',
+        details: error instanceof PostgrestError ? error.details : undefined,
+        hint: error instanceof PostgrestError ? error.hint : undefined,
+        code: error instanceof PostgrestError ? error.code : undefined,
+        stack: error instanceof Error ? error.stack : undefined
       })
-      alert(`Error creating calendar: ${error?.message || 'Unknown error'}`)
+      alert(`Error creating calendar: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
