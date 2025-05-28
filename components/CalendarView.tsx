@@ -1,14 +1,14 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { ArrowLeft, Plus, X, Clock, Users, Mail } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import type { Calendar, Event } from '@/types/database'
+import type { Calendar, Event, Profile } from '@/types/database'
 import InviteModal from './InviteModal'
 
 interface CalendarViewProps {
   calendar: Calendar
-  user: any
+  user: Profile
   onBack: () => void
 }
 
@@ -17,7 +17,6 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
   const [events, setEvents] = useState<Event[]>([])
   const [showAddModal, setShowAddModal] = useState(false)
   const [showInviteModal, setShowInviteModal] = useState(false)
-  const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [newEvent, setNewEvent] = useState({
     title: '',
@@ -30,11 +29,7 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
     color: calendar.color
   })
 
-  useEffect(() => {
-    fetchEvents()
-  }, [calendar.id])
-
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('events')
@@ -60,7 +55,11 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
     } finally {
       setLoading(false)
     }
-  }
+  }, [calendar.id])
+
+  useEffect(() => {
+    fetchEvents()
+  }, [fetchEvents])
 
   const handleAddEvent = async () => {
     if (!newEvent.title || !newEvent.startDate) return
@@ -184,7 +183,6 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
   const handleDateClick = (day: number | null) => {
     if (!day) return
     const clickedDate = formatDateForInput(new Date(currentDate.getFullYear(), currentDate.getMonth(), day))
-    setSelectedDate(clickedDate)
     setNewEvent(prev => ({ ...prev, startDate: clickedDate }))
     setShowAddModal(true)
   }
