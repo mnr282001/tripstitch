@@ -231,7 +231,7 @@ export default function InviteModal({ calendar, onClose }: InviteModalProps) {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[80vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">Manage Calendar Access</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Manage Calendar Access</h3>
           <button
             onClick={onClose}
             className="p-1 text-gray-400 hover:text-gray-600"
@@ -242,7 +242,7 @@ export default function InviteModal({ calendar, onClose }: InviteModalProps) {
 
         {/* Current Members */}
         <div className="mb-6">
-          <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+          <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
             <Users className="h-4 w-4" />
             Current Members ({members.length})
           </h4>
@@ -253,7 +253,7 @@ export default function InviteModal({ calendar, onClose }: InviteModalProps) {
                   <div className="font-medium text-sm">
                     {member.profile?.full_name || member.profile?.email || 'Unknown'}
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-gray-700">
                     {member.profile?.email} • {member.role}
                   </div>
                 </div>
@@ -272,14 +272,14 @@ export default function InviteModal({ calendar, onClose }: InviteModalProps) {
 
         {/* Invite by Email */}
         <div className="mb-6">
-          <h4 className="text-sm font-medium text-gray-700 mb-3">Invite by Email</h4>
+          <h4 className="text-sm font-medium text-gray-900 mb-3">Invite by Email</h4>
           <form onSubmit={handleInvite} className="space-y-3">
             <div>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                 placeholder="Enter email address"
                 required
                 disabled={loading}
@@ -287,13 +287,13 @@ export default function InviteModal({ calendar, onClose }: InviteModalProps) {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-900 mb-1">
                 Role
               </label>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value as 'editor' | 'viewer')}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                 disabled={loading}
               >
                 <option value="editor">Editor - Can add and edit events</option>
@@ -324,23 +324,23 @@ export default function InviteModal({ calendar, onClose }: InviteModalProps) {
 
         {/* Share Link */}
         <div className="mb-4">
-          <h4 className="text-sm font-medium text-gray-700 mb-3">Share Link</h4>
+          <h4 className="text-sm font-medium text-gray-900 mb-3">Share Link</h4>
           <div className="flex gap-2">
             <input
               type="text"
               value={`${typeof window !== 'undefined' ? window.location.origin : ''}/join/${calendar.id}`}
               readOnly
-              className="flex-1 p-2 border border-gray-300 rounded-lg bg-gray-50 text-sm"
+              className="flex-1 p-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-900 text-sm"
             />
             <button
               onClick={copyInviteLink}
-              className="flex items-center gap-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              className="flex items-center gap-1 px-3 py-2 bg-gray-100 text-gray-900 rounded-lg hover:bg-gray-200 transition-colors"
             >
               {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
               {copied ? 'Copied!' : 'Copy'}
             </button>
           </div>
-          <p className="text-xs text-gray-500 mt-2">
+          <p className="text-xs text-gray-700 mt-2">
             Anyone with this link can request to join the calendar
           </p>
         </div>

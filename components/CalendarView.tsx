@@ -17,7 +17,10 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
   const [events, setEvents] = useState<Event[]>([])
   const [showAddModal, setShowAddModal] = useState(false)
   const [showInviteModal, setShowInviteModal] = useState(false)
+  const [showAllActivitiesModal, setShowAllActivitiesModal] = useState(false)
+  const [selectedColor, setSelectedColor] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null)
   const [newEvent, setNewEvent] = useState({
     title: '',
     description: '',
@@ -61,44 +64,84 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
     fetchEvents()
   }, [fetchEvents])
 
+  const resetEventForm = () => {
+    setNewEvent({
+      title: '',
+      description: '',
+      startDate: '',
+      endDate: '',
+      time: '09:00',
+      duration: 30,
+      isMultiDay: false,
+      color: calendar.color
+    })
+    setEditingEvent(null)
+  }
+
   const handleAddEvent = async () => {
     if (!newEvent.title || !newEvent.startDate) return
     
     const endDate = newEvent.isMultiDay && newEvent.endDate ? newEvent.endDate : newEvent.startDate
     
     try {
-      const { error } = await supabase
-        .from('events')
-        .insert({
-          calendar_id: calendar.id,
-          title: newEvent.title,
-          description: newEvent.description || null,
-          start_date: newEvent.startDate,
-          end_date: endDate,
-          time: newEvent.time,
-          duration: newEvent.duration,
-          is_multi_day: newEvent.isMultiDay,
-          color: newEvent.color,
-          created_by: user.id
-        })
+      if (editingEvent) {
+        // Update existing event
+        const { error } = await supabase
+          .from('events')
+          .update({
+            title: newEvent.title,
+            description: newEvent.description || null,
+            start_date: newEvent.startDate,
+            end_date: endDate,
+            time: newEvent.time,
+            duration: newEvent.duration,
+            is_multi_day: newEvent.isMultiDay,
+            color: newEvent.color
+          })
+          .eq('id', editingEvent.id)
 
-      if (error) throw error
+        if (error) throw error
+      } else {
+        // Create new event
+        const { error } = await supabase
+          .from('events')
+          .insert({
+            calendar_id: calendar.id,
+            title: newEvent.title,
+            description: newEvent.description || null,
+            start_date: newEvent.startDate,
+            end_date: endDate,
+            time: newEvent.time,
+            duration: newEvent.duration,
+            is_multi_day: newEvent.isMultiDay,
+            color: newEvent.color,
+            created_by: user.id
+          })
+
+        if (error) throw error
+      }
 
       await fetchEvents()
-      setNewEvent({
-        title: '',
-        description: '',
-        startDate: '',
-        endDate: '',
-        time: '09:00',
-        duration: 30,
-        isMultiDay: false,
-        color: calendar.color
-      })
+      resetEventForm()
       setShowAddModal(false)
     } catch (error) {
-      console.error('Error creating event:', error)
+      console.error('Error saving event:', error)
     }
+  }
+
+  const handleEditEvent = (event: Event) => {
+    setEditingEvent(event)
+    setNewEvent({
+      title: event.title,
+      description: event.description || '',
+      startDate: event.start_date,
+      endDate: event.end_date,
+      time: event.time,
+      duration: event.duration,
+      isMultiDay: event.is_multi_day,
+      color: event.color
+    })
+    setShowAddModal(true)
   }
 
   const deleteEvent = async (eventId: string) => {
@@ -156,6 +199,14 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
     })
   }
 
+  const formatTime = (time: string) => {
+    const [hours, minutes] = time.split(':')
+    const hour = parseInt(hours)
+    const period = hour >= 12 ? 'PM' : 'AM'
+    const hour12 = hour % 12 || 12
+    return `${hour12}:${minutes} ${period}`
+  }
+
   const getEventDisplayInfo = (event: Event, currentDateStr: string) => {
     if (!event.is_multi_day) {
       return {
@@ -205,6 +256,24 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
     '#3B82F6', '#EF4444', '#10B981', '#8B5CF6', '#F59E0B', '#EC4899', '#06B6D4'
   ]
 
+  // Sort events by date and time
+  const sortedEvents = [...events].sort((a, b) => {
+    const dateA = new Date(`${a.start_date}T${a.time}`)
+    const dateB = new Date(`${b.start_date}T${b.time}`)
+    return dateA.getTime() - dateB.getTime()
+  })
+
+  const upcomingEvents = sortedEvents.slice(0, 5)
+  const filteredEvents = selectedColor 
+    ? sortedEvents.filter(event => event.color === selectedColor)
+    : sortedEvents
+
+  const uniqueColors = Array.from(new Set(events.map(event => event.color)))
+  const colorCounts = uniqueColors.reduce((acc, color) => {
+    acc[color] = events.filter(event => event.color === color).length
+    return acc
+  }, {} as Record<string, number>)
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -225,7 +294,7 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
             <div className="flex items-center gap-3">
               <button
                 onClick={onBack}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-900"
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>
@@ -238,7 +307,7 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setShowInviteModal(true)}
-                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+                className="flex items-center gap-2 bg-gray-100 text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 <Mail className="h-4 w-4" />
                 Invite
@@ -280,7 +349,7 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
             >
               ←
             </button>
-            <h2 className="text-xl font-semibold">
+            <h2 className="text-xl font-semibold text-gray-900">
               {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
             </h2>
             <button
@@ -323,14 +392,14 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
                                 displayInfo.isMiddle ? 'opacity-80' : ''
                               }`}
                               style={{ backgroundColor: event.color }}
-                              title={`${event.title} - ${displayInfo.showTime ? event.time + ' ' : ''}(${formatDuration(event.duration)})${event.is_multi_day ? ` • ${event.start_date} to ${event.end_date}` : ''}`}
+                              title={`${event.title} - ${displayInfo.showTime ? formatTime(event.time) + ' ' : ''}(${formatDuration(event.duration)})${event.is_multi_day ? ` • ${event.start_date} to ${event.end_date}` : ''}`}
                             >
-                              {displayInfo.prefix}{displayInfo.showTime ? event.time + ' ' : ''}{event.title}
+                              {displayInfo.prefix}{displayInfo.showTime ? formatTime(event.time) + ' ' : ''}{event.title}
                             </div>
                           )
                         })}
                         {getEventsForDate(day).length > 3 && (
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-gray-700">
                             +{getEventsForDate(day).length - 3} more
                           </div>
                         )}
@@ -346,23 +415,27 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
         {/* Upcoming Events */}
         <div className="bg-white rounded-lg shadow-sm border">
           <div className="p-4 border-b">
-            <h3 className="text-lg font-semibold">Upcoming Activities</h3>
+            <h3 className="text-lg font-semibold text-gray-900">Upcoming Activities</h3>
           </div>
           <div className="p-4">
             {events.length === 0 ? (
               <p className="text-gray-500 text-center py-8">No activities planned yet. Add some to get started!</p>
             ) : (
               <div className="space-y-3">
-                {events.slice(0, 5).map(event => (
-                  <div key={event.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                {upcomingEvents.map(event => (
+                  <div 
+                    key={event.id} 
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+                    onClick={() => handleEditEvent(event)}
+                  >
                     <div className="flex items-center gap-3">
                       <div
                         className="w-3 h-3 rounded-full"
                         style={{ backgroundColor: event.color }}
                       />
                       <div>
-                        <div className="font-medium">{event.title}</div>
-                        <div className="text-sm text-gray-600">
+                        <div className="font-medium text-gray-900">{event.title}</div>
+                        <div className="text-sm text-gray-700">
                           {event.is_multi_day ? (
                             <span>{event.start_date} to {event.end_date} • starts at {event.time} • by {event.creator_profile?.full_name || 'Unknown'}</span>
                           ) : (
@@ -370,13 +443,16 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
                           )}
                         </div>
                         {event.description && (
-                          <div className="text-sm text-gray-500 mt-1">{event.description}</div>
+                          <div className="text-sm text-gray-700 mt-1">{event.description}</div>
                         )}
                       </div>
                     </div>
                     {(calendar.user_role === 'owner' || event.created_by === user.id) && (
                       <button
-                        onClick={() => deleteEvent(event.id)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          deleteEvent(event.id)
+                        }}
                         className="p-1 text-gray-400 hover:text-red-500 transition-colors"
                       >
                         <X className="h-4 w-4" />
@@ -384,20 +460,124 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
                     )}
                   </div>
                 ))}
+                {events.length > 0 && (
+                  <button
+                    onClick={() => setShowAllActivitiesModal(true)}
+                    className="w-full py-2 text-gray-700 hover:text-gray-900 transition-colors"
+                  >
+                    Show all {events.length} activities
+                  </button>
+                )}
               </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Add Event Modal */}
+      {/* Show All Activities Modal */}
+      {showAllActivitiesModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full p-6 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">All Activities</h3>
+              <button
+                onClick={() => setShowAllActivitiesModal(false)}
+                className="p-1 text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Color Filter */}
+            <div className="mb-4">
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={() => setSelectedColor(null)}
+                  className={`px-3 py-1 rounded-full text-sm ${
+                    selectedColor === null
+                      ? 'bg-gray-900 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  All
+                </button>
+                {uniqueColors.map(color => (
+                  <button
+                    key={color}
+                    onClick={() => setSelectedColor(color)}
+                    className={`px-3 py-1 rounded-full text-sm flex items-center gap-2 ${
+                      selectedColor === color
+                        ? 'bg-gray-900 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: color }}
+                    />
+                    {colorCounts[color]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {filteredEvents.map(event => (
+                <div 
+                  key={event.id} 
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+                  onClick={() => handleEditEvent(event)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: event.color }}
+                    />
+                    <div>
+                      <div className="font-medium text-gray-900">{event.title}</div>
+                      <div className="text-sm text-gray-700">
+                        {event.is_multi_day ? (
+                          <span>{event.start_date} to {event.end_date} • starts at {event.time} • by {event.creator_profile?.full_name || 'Unknown'}</span>
+                        ) : (
+                          <span>{event.start_date} at {event.time} • {formatDuration(event.duration)} • by {event.creator_profile?.full_name || 'Unknown'}</span>
+                        )}
+                      </div>
+                      {event.description && (
+                        <div className="text-sm text-gray-700 mt-1">{event.description}</div>
+                      )}
+                    </div>
+                  </div>
+                  {(calendar.user_role === 'owner' || event.created_by === user.id) && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        deleteEvent(event.id)
+                      }}
+                      className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add/Edit Event Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Add New Activity</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                {editingEvent ? 'Edit Activity' : 'Add New Activity'}
+              </h3>
               <button
-                onClick={() => setShowAddModal(false)}
+                onClick={() => {
+                  setShowAddModal(false)
+                  resetEventForm()
+                }}
                 className="p-1 text-gray-400 hover:text-gray-600"
               >
                 <X className="h-5 w-5" />
@@ -406,33 +586,33 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-900 mb-1">
                   Activity Title *
                 </label>
                 <input
                   type="text"
                   value={newEvent.title}
                   onChange={(e) => setNewEvent(prev => ({ ...prev, title: e.target.value }))}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                   placeholder="e.g., Museum Visit"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-900 mb-1">
                   Description
                 </label>
                 <textarea
                   value={newEvent.description}
                   onChange={(e) => setNewEvent(prev => ({ ...prev, description: e.target.value }))}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                   placeholder="Additional details..."
                   rows={2}
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-900 mb-2">
                   <input
                     type="checkbox"
                     checked={newEvent.isMultiDay}
@@ -449,20 +629,20 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-900 mb-1">
                     {newEvent.isMultiDay ? 'Start Date *' : 'Date *'}
                   </label>
                   <input
                     type="date"
                     value={newEvent.startDate}
                     onChange={(e) => setNewEvent(prev => ({ ...prev, startDate: e.target.value }))}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                   />
                 </div>
                 
                 {newEvent.isMultiDay && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-900 mb-1">
                       End Date *
                     </label>
                     <input
@@ -470,21 +650,21 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
                       value={newEvent.endDate}
                       min={newEvent.startDate}
                       onChange={(e) => setNewEvent(prev => ({ ...prev, endDate: e.target.value }))}
-                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                     />
                   </div>
                 )}
                 
                 {!newEvent.isMultiDay && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-900 mb-1">
                       Time
                     </label>
                     <input
                       type="time"
                       value={newEvent.time}
                       onChange={(e) => setNewEvent(prev => ({ ...prev, time: e.target.value }))}
-                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                     />
                   </div>
                 )}
@@ -492,26 +672,26 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
               
               {newEvent.isMultiDay && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-900 mb-1">
                     Start Time
                   </label>
                   <input
                     type="time"
                     value={newEvent.time}
                     onChange={(e) => setNewEvent(prev => ({ ...prev, time: e.target.value }))}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                   />
                 </div>
               )}
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-900 mb-1">
                   Duration {newEvent.isMultiDay ? '(per day)' : ''}
                 </label>
                 <select
                   value={newEvent.duration}
                   onChange={(e) => setNewEvent(prev => ({ ...prev, duration: parseInt(e.target.value) }))}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                 >
                   <option value={15}>15 minutes</option>
                   <option value={30}>30 minutes</option>
@@ -525,7 +705,7 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-900 mb-2">
                   Color
                 </label>
                 <div className="flex gap-2 flex-wrap">
@@ -546,7 +726,10 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
             
             <div className="flex gap-3 mt-6">
               <button
-                onClick={() => setShowAddModal(false)}
+                onClick={() => {
+                  setShowAddModal(false)
+                  resetEventForm()
+                }}
                 className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 Cancel
@@ -556,7 +739,7 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
                 disabled={!newEvent.title || !newEvent.startDate || (newEvent.isMultiDay && !newEvent.endDate)}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
               >
-                Add Activity
+                {editingEvent ? 'Save Changes' : 'Add Activity'}
               </button>
             </div>
           </div>
