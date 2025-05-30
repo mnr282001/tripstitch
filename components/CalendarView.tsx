@@ -6,6 +6,9 @@ import { supabase } from '@/lib/supabase'
 import type { Calendar, Event, Profile } from '@/types/database'
 import InviteModal from './InviteModal'
 
+// Add isDevelopment check
+const isDevelopment = process.env.NODE_ENV === 'development'
+
 interface CalendarViewProps {
   calendar: Calendar
   user: Profile
@@ -305,13 +308,15 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
               <h1 className="text-2xl font-bold text-gray-900">{calendar.name}</h1>
             </div>
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowInviteModal(true)}
-                className="flex items-center gap-2 bg-gray-100 text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                <Mail className="h-4 w-4" />
-                Invite
-              </button>
+              {isDevelopment && (
+                <button
+                  onClick={() => setShowInviteModal(true)}
+                  className="flex items-center gap-2 bg-gray-100 text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  <Mail className="h-4 w-4" />
+                  Invite
+                </button>
+              )}
               <button
                 onClick={() => setShowAddModal(true)}
                 className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
