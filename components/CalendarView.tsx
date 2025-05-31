@@ -25,7 +25,6 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
   const [showAddModal, setShowAddModal] = useState(false)
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [selectedColor, setSelectedColor] = useState<string | null>(null)
   const [showAllActivitiesModal, setShowAllActivitiesModal] = useState(false)
   const [editingEvent, setEditingEvent] = useState<Event | null>(null)
