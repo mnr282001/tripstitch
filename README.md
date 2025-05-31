@@ -11,6 +11,8 @@ TripStitch is a modern, collaborative trip planning platform that helps you and 
 - **User Authentication**: Secure sign-up and login system
 - **Responsive Design**: Works seamlessly on desktop and mobile devices
 - **Dark Mode Support**: Automatically adapts to your system preferences
+- **Interactive Maps**: Add locations to events with custom markers and animations using react-map-gl
+- **Location Search**: Easily find and add places using Google Places autocomplete integration
 
 ## 🚀 Getting Started
 
