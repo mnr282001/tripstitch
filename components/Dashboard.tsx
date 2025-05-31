@@ -258,10 +258,10 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
     }
   }
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    onSignOut()
-  }
+  // const handleSignOut = async () => {
+  //   await supabase.auth.signOut()
+  //   onSignOut()
+  // }
 
   if (loading) {
     return (

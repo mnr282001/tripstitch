@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect, useCallback } from 'react'
-import { X, Mail, Copy, Check, Users, Trash2 } from 'lucide-react'
+import { X } from 'lucide-react'
+import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 import type { Calendar, CalendarMember } from '@/types/database'
 import { PostgrestError } from '@supabase/supabase-js'
@@ -20,9 +21,7 @@ export default function InviteModal({ calendar, onClose }: InviteModalProps) {
   const [email, setEmail] = useState('')
   const [role, setRole] = useState<'editor' | 'viewer'>('editor')
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState('')
   const [members, setMembers] = useState<CalendarMember[]>([])
-  const [copied, setCopied] = useState(false)
 
   const fetchMembers = useCallback(async () => {
     try {
@@ -61,12 +60,10 @@ export default function InviteModal({ calendar, onClose }: InviteModalProps) {
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email.trim()) {
-      setMessage('Please enter an email address')
       return
     }
 
     setLoading(true)
-    setMessage('')
 
     console.log('Starting invite process for:', email.trim()) // Debug log
 
@@ -112,7 +109,6 @@ export default function InviteModal({ calendar, onClose }: InviteModalProps) {
         }
 
         if (existingMember) {
-          setMessage('This user is already a member of this calendar')
           return
         }
 
@@ -127,7 +123,6 @@ export default function InviteModal({ calendar, onClose }: InviteModalProps) {
 
         if (addMemberError) throw addMemberError
 
-        setMessage('User added successfully!')
         await fetchMembers()
         setEmail('')
       } else {
@@ -173,10 +168,8 @@ export default function InviteModal({ calendar, onClose }: InviteModalProps) {
               .single()
 
             if (existingInvite && new Date(existingInvite.expires_at) > new Date()) {
-              const inviteUrl = `${window.location.origin}/invite/accept/${existingInvite.token}`
-              setMessage(`An invitation has already been sent to this email. Share this link: ${inviteUrl}`)
+              // const inviteUrl = `${window.location.origin}/invite/accept/${existingInvite.token}`
             } else {
-              setMessage('An old invitation exists. Please try again or contact support.')
             }
           } else {
             throw inviteError
@@ -189,7 +182,6 @@ export default function InviteModal({ calendar, onClose }: InviteModalProps) {
         console.log('Invite URL:', inviteUrl) // Debug log
 
         // For now, just show the link since email sending might not be set up
-        setMessage(`Invitation created! Share this link: ${inviteUrl}`)
         setEmail('')
 
         // TODO: Implement actual email sending here
@@ -200,7 +192,6 @@ export default function InviteModal({ calendar, onClose }: InviteModalProps) {
         error,
         message: error instanceof Error ? error.message : 'Unknown error'
       })
-      setMessage(`Error: ${error instanceof Error ? error.message : 'Failed to send invitation'}`)
     } finally {
       setLoading(false)
     }
@@ -221,16 +212,16 @@ export default function InviteModal({ calendar, onClose }: InviteModalProps) {
     }
   }
 
-  const copyInviteLink = async () => {
-    const inviteLink = `${window.location.origin}/join/${calendar.id}`
-    try {
-      await navigator.clipboard.writeText(inviteLink)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch (error) {
-      console.error('Failed to copy link:', error)
-    }
-  }
+  // const copyInviteLink = async () => {
+  //   const inviteLink = `${window.location.origin}/join/${calendar.id}`
+  //   try {
+  //     await navigator.clipboard.writeText(inviteLink)
+  //     setCopied(true)
+  //     setTimeout(() => setCopied(false), 2000)
+  //   } catch (error) {
+  //     console.error('Failed to copy link:', error)
+  //   }
+  // }
 
   return (
     <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
@@ -311,10 +302,12 @@ export default function InviteModal({ calendar, onClose }: InviteModalProps) {
                   <div className="flex items-center space-x-3">
                     <div className="flex-shrink-0">
                       {member.profile?.avatar_url ? (
-                        <img
+                        <Image
                           src={member.profile.avatar_url}
                           alt={member.profile.full_name || member.profile.email}
-                          className="h-8 w-8 rounded-full"
+                          width={32}
+                          height={32}
+                          className="rounded-full"
                         />
                       ) : (
                         <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">

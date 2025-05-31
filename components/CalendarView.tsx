@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from 'react'
-import { ArrowLeft, Plus, X, Clock, Users, Mail } from 'lucide-react'
+import { ArrowLeft, Plus, X, Clock, Users, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Calendar, Event, Profile } from '@/types/database'
 import InviteModal from './InviteModal'
@@ -162,6 +162,13 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
     }
   }
 
+  const handleDeleteEvent = async (event: Event) => {
+    if (window.confirm('Are you sure you want to delete this event?')) {
+      await deleteEvent(event.id)
+      setShowAddModal(false)
+    }
+  }
+
   // Calendar helper functions
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear()
@@ -240,23 +247,23 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
     setShowAddModal(true)
   }
 
-  const formatDuration = (minutes: number) => {
-    if (minutes < 60) return `${minutes}min`
-    const hours = Math.floor(minutes / 60)
-    const mins = minutes % 60
-    return mins > 0 ? `${hours}h ${mins}min` : `${hours}h`
-  }
+  // const formatDuration = (minutes: number) => {
+  //   if (minutes < 60) return `${minutes}min`
+  //   const hours = Math.floor(minutes / 60)
+  //   const mins = minutes % 60
+  //   return mins > 0 ? `${hours}h ${mins}min` : `${hours}h`
+  // }
 
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ]
+  // const monthNames = [
+  //   'January', 'February', 'March', 'April', 'May', 'June',
+  //   'July', 'August', 'September', 'October', 'November', 'December'
+  // ]
 
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  // const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-  const colors = [
-    '#3B82F6', '#EF4444', '#10B981', '#8B5CF6', '#F59E0B', '#EC4899', '#06B6D4'
-  ]
+  // const colors = [
+  //   '#3B82F6', '#EF4444', '#10B981', '#8B5CF6', '#F59E0B', '#EC4899', '#06B6D4'
+  // ]
 
   // Sort events by date and time
   const sortedEvents = [...events].sort((a, b) => {
@@ -307,13 +314,15 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
               <h1 className="text-xl font-semibold text-gray-900">{calendar.name}</h1>
             </div>
             <div className="flex items-center space-x-4">
-              <button
-                onClick={() => setShowInviteModal(true)}
-                className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                <Users className="h-4 w-4 mr-2" />
-                Invite
-              </button>
+              {isDevelopment && (
+                <button
+                  onClick={() => setShowInviteModal(true)}
+                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  <Users className="h-4 w-4 mr-2" />
+                  Invite
+                </button>
+              )}
               <button
                 onClick={() => setShowAddModal(true)}
                 className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -609,6 +618,15 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
                   </div>
                 )}
                 <div className="flex justify-end space-x-3">
+                  {editingEvent && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteEvent(editingEvent)}
+                      className="px-4 py-2 border border-red-300 rounded-md text-sm font-medium text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                    >
+                      Delete Event
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => {
@@ -721,14 +739,22 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
                           <p className="text-sm font-medium text-gray-900 truncate">
                             {event.title}
                           </p>
-                          <button
-                            onClick={() => handleEditEvent(event)}
-                            className="text-gray-400 hover:text-gray-500"
-                          >
-                            <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                            </svg>
-                          </button>
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => handleEditEvent(event)}
+                              className="text-gray-600 hover:text-gray-900"
+                            >
+                              <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteEvent(event)}
+                              className="text-red-600 hover:text-red-900"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
                         </div>
                         <div className="mt-1 flex items-center text-xs text-gray-500">
                           <Clock className="h-3 w-3 mr-1" />
