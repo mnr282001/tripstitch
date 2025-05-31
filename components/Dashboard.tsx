@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Calendar, Plus, Users, LogOut } from 'lucide-react'
+import { Calendar, Plus, Users, LogOut, LayoutGrid, List } from 'lucide-react'
 import type { Calendar as CalendarType, Profile } from '@/types/database'
 import CalendarView from './CalendarView'
 import CreateCalendarModal from './CreateCalendarModal'
@@ -21,6 +21,7 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState<Profile | null>(null)
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
   const fetchProfile = useCallback(async () => {
     if (!user?.id) return
@@ -286,22 +287,22 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <Calendar className="h-8 w-8 text-blue-600" />
+      <header className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
+            <div className="flex items-center space-x-3">
               <h1 className="text-2xl font-bold text-gray-900">TripStitch</h1>
+              <div className="hidden sm:block text-gray-500">|</div>
+              <p className="text-gray-600">
+                Hi, {profile?.full_name || user?.email?.split('@')[0] || 'there'}!
+              </p>
             </div>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600">
-                Welcome, {profile?.full_name || user?.email || 'User'}
-              </span>
+            <div className="flex items-center space-x-4">
               <button
-                onClick={handleSignOut}
-                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+                onClick={onSignOut}
+                className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
-                <LogOut className="h-4 w-4" />
+                <LogOut className="h-4 w-4 mr-2" />
                 Sign Out
               </button>
             </div>
@@ -311,85 +312,140 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-3xl font-bold text-gray-900">Your Trip Calendars</h2>
-            <p className="text-gray-600 mt-2">
-              {calendars.length === 0 
-                ? "Create your first calendar to start planning trips"
-                : `You have access to ${calendars.length} calendar${calendars.length === 1 ? '' : 's'}`
-              }
-            </p>
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
           </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="h-5 w-5" />
-            New Calendar
-          </button>
-        </div>
-
-        {/* Calendars Grid */}
-        {calendars.length === 0 ? (
-          <div className="text-center py-12">
-            <Calendar className="h-24 w-24 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-medium text-gray-900 mb-2">No calendars yet</h3>
-            <p className="text-gray-600 mb-6">Create your first trip calendar to get started</p>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Create Calendar
-            </button>
-          </div>
+        ) : selectedCalendar ? (
+          <CalendarView
+            calendar={selectedCalendar}
+            user={user}
+            onBack={() => setSelectedCalendar(null)}
+          />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {calendars.map(calendar => (
-              <div
-                key={calendar.id}
-                onClick={() => setSelectedCalendar(calendar)}
-                className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow cursor-pointer"
+          <div className="space-y-6">
+            {/* View Toggle and Create Button */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
+              <div className="flex items-center bg-gray-100 rounded-lg w-full sm:w-auto">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`h-9 flex-1 sm:flex-none px-3 rounded-l-lg text-sm font-medium transition-colors ${
+                    viewMode === 'grid' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-700'
+                  }`}
+                  title="Grid View"
+                >
+                  <LayoutGrid className="h-5 w-5 mx-auto sm:mx-0" />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`h-9 flex-1 sm:flex-none px-3 rounded-r-lg text-sm font-medium transition-colors ${
+                    viewMode === 'list' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-700'
+                  }`}
+                  title="List View"
+                >
+                  <List className="h-5 w-5 mx-auto sm:mx-0" />
+                </button>
+              </div>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="inline-flex items-center justify-center h-9 w-full sm:w-auto px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
-                <div className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div
-                      className="w-4 h-4 rounded-full"
-                      style={{ backgroundColor: calendar.color }}
-                    />
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      calendar.user_role === 'owner' 
-                        ? 'bg-blue-100 text-blue-700'
-                        : calendar.user_role === 'editor'
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-gray-100 text-gray-700'
-                    }`}>
-                      {calendar.user_role}
-                    </span>
-                  </div>
-                  
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    {calendar.name}
-                  </h3>
-                  
-                  {calendar.description && (
-                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                      {calendar.description}
-                    </p>
-                  )}
-                  
-                  <div className="flex items-center justify-between text-sm text-gray-500">
-                    <span>
-                      Created by {calendar.creator_profile?.full_name || 'Unknown'}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <Users className="h-4 w-4" />
-                      <span>{calendar.member_count || 1}</span>
-                    </div>
-                  </div>
+                <Plus className="h-4 w-4 mr-2" />
+                New Calendar
+              </button>
+            </div>
+
+            {/* Calendar Display */}
+            {calendars.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-lg shadow">
+                <Calendar className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No calendars</h3>
+                <p className="mt-1 text-sm text-gray-500">Get started by creating a new calendar.</p>
+                <div className="mt-6">
+                  <button
+                    onClick={() => setShowCreateModal(true)}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    New Calendar
+                  </button>
                 </div>
               </div>
-            ))}
+            ) : viewMode === 'grid' ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {calendars.map((calendar) => (
+                  <button
+                    key={calendar.id}
+                    onClick={() => setSelectedCalendar(calendar)}
+                    className="bg-white rounded-lg shadow hover:shadow-md transition-shadow p-6 text-left"
+                  >
+                    <div className="flex items-start space-x-4">
+                      <div
+                        className="h-12 w-12 rounded-lg flex items-center justify-center flex-shrink-0"
+                        style={{ backgroundColor: calendar.color }}
+                      >
+                        <Calendar className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg font-medium text-gray-900 truncate">{calendar.name}</h3>
+                        <p className="mt-1 text-sm text-gray-500 line-clamp-2">
+                          {calendar.description || 'No description'}
+                        </p>
+                        <div className="mt-4 flex items-center text-sm text-gray-500">
+                          <Users className="h-4 w-4 mr-1" />
+                          <span>{calendar.member_count} members</span>
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white shadow rounded-lg overflow-hidden">
+                <ul className="divide-y divide-gray-200">
+                  {calendars.map((calendar) => (
+                    <li key={calendar.id} className="hover:bg-gray-50">
+                      <button
+                        onClick={() => setSelectedCalendar(calendar)}
+                        className="w-full px-4 py-4 sm:px-6"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div
+                              className="h-8 w-8 rounded-full flex items-center justify-center"
+                              style={{ backgroundColor: calendar.color }}
+                            >
+                              <Calendar className="h-4 w-4 text-white" />
+                            </div>
+                            <div className="text-left">
+                              <p className="text-sm font-medium text-gray-900">{calendar.name}</p>
+                              <p className="text-sm text-gray-500">
+                                {calendar.description || 'No description'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-4">
+                            <div className="flex items-center text-sm text-gray-500">
+                              <Users className="h-4 w-4 mr-1" />
+                              <span>{calendar.member_count}</span>
+                            </div>
+                            <div className="text-gray-400">
+                              <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path
+                                  fillRule="evenodd"
+                                  d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
       </main>
@@ -401,7 +457,6 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
           onCreate={handleCreateCalendar}
         />
       )}
-
       {showInviteModal && selectedCalendar && (
         <InviteModal
           calendar={selectedCalendar}
