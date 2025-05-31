@@ -150,6 +150,7 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
       color: event.color
     })
     setShowAddModal(true)
+    setShowAllActivitiesModal(false)
   }
 
   const deleteEvent = async (eventId: string) => {
