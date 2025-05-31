@@ -5,9 +5,11 @@ import { supabase } from '@/lib/supabase';
 import AuthForm from './AuthForm';
 import Dashboard from './Dashboard';
 import type { User } from '@supabase/supabase-js'
-import type { Profile } from '@/types/database'
+import type { Database } from '@/types/database.types'
 
-const TripPlanningCalendar = () => {
+type Profile = Database['public']['Tables']['profiles']['Row']
+
+const AppContainer = () => {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -61,4 +63,4 @@ const TripPlanningCalendar = () => {
   return <Dashboard user={profile} onSignOut={handleSignOut} />
 }
 
-export default TripPlanningCalendar;
+export default AppContainer;

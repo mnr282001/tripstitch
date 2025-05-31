@@ -1,5 +1,5 @@
-import TripPlanningCalendar from '@/components/TripPlanningCalendar'
+import AppContainer from '@/components/AppContainer'
 
 export default function Home() {
-  return <TripPlanningCalendar />
+  return <AppContainer />
 }
