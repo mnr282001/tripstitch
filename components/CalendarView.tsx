@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import type { Database } from '@/types/database.types'
 
 // Add isDevelopment check
-const isDevelopment = process.env.NODE_ENV === 'development'
+// const isDevelopment = process.env.NODE_ENV === 'development'
 
 type Calendar = Database['public']['Tables']['calendars']['Row']
 type Profile = Database['public']['Tables']['profiles']['Row']
