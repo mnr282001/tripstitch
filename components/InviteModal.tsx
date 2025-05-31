@@ -11,6 +11,11 @@ interface InviteModalProps {
   onClose: () => void
 }
 
+const roles = [
+  { value: 'editor', label: 'Editor' },
+  { value: 'viewer', label: 'Viewer' }
+] as const
+
 export default function InviteModal({ calendar, onClose }: InviteModalProps) {
   const [email, setEmail] = useState('')
   const [role, setRole] = useState<'editor' | 'viewer'>('editor')
@@ -228,129 +233,127 @@ export default function InviteModal({ calendar, onClose }: InviteModalProps) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[80vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Manage Calendar Access</h3>
-          <button
-            onClick={onClose}
-            className="p-1 text-gray-400 hover:text-gray-600"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* Current Members */}
-        <div className="mb-6">
-          <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Current Members ({members.length})
-          </h4>
-          <div className="space-y-2 max-h-40 overflow-y-auto">
-            {members.map(member => (
-              <div key={member.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                <div className="flex-1">
-                  <div className="font-medium text-sm">
-                    {member.profile?.full_name || member.profile?.email || 'Unknown'}
-                  </div>
-                  <div className="text-xs text-gray-700">
-                    {member.profile?.email} • {member.role}
-                  </div>
-                </div>
-                {member.role !== 'owner' && calendar.user_role === 'owner' && (
-                  <button
-                    onClick={() => removeMember(member.id)}
-                    className="p-1 text-gray-400 hover:text-red-500 transition-colors"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-            ))}
+    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+        <div className="px-4 py-5 sm:p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-medium text-gray-900">Invite People</h3>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-500"
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
-        </div>
-
-        {/* Invite by Email */}
-        <div className="mb-6">
-          <h4 className="text-sm font-medium text-gray-900 mb-3">Invite by Email</h4>
-          <form onSubmit={handleInvite} className="space-y-3">
+          <form onSubmit={handleInvite} className="space-y-4">
             <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                Email Address
+              </label>
               <input
                 type="email"
+                id="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                 placeholder="Enter email address"
                 required
-                disabled={loading}
               />
             </div>
-            
             <div>
-              <label className="block text-sm font-medium text-gray-900 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Role
               </label>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value as 'editor' | 'viewer')}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-                disabled={loading}
-              >
-                <option value="editor">Editor - Can add and edit events</option>
-                <option value="viewer">Viewer - Can only view events</option>
-              </select>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading || !email.trim()}
-              className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-            >
-              <Mail className="h-4 w-4" />
-              {loading ? 'Sending...' : 'Send Invitation'}
-            </button>
-
-            {message && (
-              <div className={`p-3 rounded-lg text-sm ${
-                message.includes('successfully') || message.includes('created')
-                  ? 'bg-green-50 text-green-700' 
-                  : 'bg-red-50 text-red-700'
-              }`}>
-                {message}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {roles.map((roleOption) => (
+                  <button
+                    key={roleOption.value}
+                    type="button"
+                    onClick={() => setRole(roleOption.value)}
+                    className={`inline-flex items-center justify-center px-4 py-2 border text-sm font-medium rounded-md ${
+                      role === roleOption.value
+                        ? 'bg-indigo-100 text-indigo-700 border-indigo-300'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {roleOption.label}
+                  </button>
+                ))}
               </div>
-            )}
+            </div>
+            <div className="flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Sending Invite...' : 'Send Invite'}
+              </button>
+            </div>
           </form>
-        </div>
 
-        {/* Share Link */}
-        <div className="mb-4">
-          <h4 className="text-sm font-medium text-gray-900 mb-3">Share Link</h4>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={`${typeof window !== 'undefined' ? window.location.origin : ''}/join/${calendar.id}`}
-              readOnly
-              className="flex-1 p-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-900 text-sm"
-            />
-            <button
-              onClick={copyInviteLink}
-              className="flex items-center gap-1 px-3 py-2 bg-gray-100 text-gray-900 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              {copied ? 'Copied!' : 'Copy'}
-            </button>
+          {/* Current Members */}
+          <div className="mt-8">
+            <h4 className="text-sm font-medium text-gray-900 mb-4">Current Members</h4>
+            <div className="space-y-3">
+              {members.map((member) => (
+                <div
+                  key={member.id}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="flex-shrink-0">
+                      {member.profile?.avatar_url ? (
+                        <img
+                          src={member.profile.avatar_url}
+                          alt={member.profile.full_name || member.profile.email}
+                          className="h-8 w-8 rounded-full"
+                        />
+                      ) : (
+                        <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
+                          <span className="text-sm font-medium text-gray-500">
+                            {(member.profile?.full_name || member.profile?.email || '?')[0].toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {member.profile?.full_name || member.profile?.email}
+                      </p>
+                      <p className="text-xs text-gray-500">{member.profile?.email}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className={`px-2 py-1 text-xs rounded-full ${
+                      member.role === 'owner'
+                        ? 'bg-blue-100 text-blue-700'
+                        : member.role === 'editor'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-gray-100 text-gray-700'
+                    }`}>
+                      {member.role}
+                    </span>
+                    {member.role !== 'owner' && calendar.user_role === 'owner' && (
+                      <button
+                        onClick={() => removeMember(member.id)}
+                        className="text-gray-400 hover:text-red-500"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-          <p className="text-xs text-gray-700 mt-2">
-            Anyone with this link can request to join the calendar
-          </p>
-        </div>
-
-        {/* Calendar Info */}
-        <div className="bg-blue-50 p-3 rounded-lg">
-          <h5 className="font-medium text-blue-900 mb-1">Calendar: {calendar.name}</h5>
-          <p className="text-sm text-blue-700">
-            {calendar.description || 'No description provided'}
-          </p>
         </div>
       </div>
     </div>
