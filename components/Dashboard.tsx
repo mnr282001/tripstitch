@@ -3,11 +3,15 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Calendar, Plus, Users, LogOut, LayoutGrid, List } from 'lucide-react'
-import type { Calendar as CalendarType, Profile } from '@/types/database'
+import type { Database } from '@/types/database.types'
 import CalendarView from './CalendarView'
 import CreateCalendarModal from './CreateCalendarModal'
-import InviteModal from './InviteModal'
 import { PostgrestError } from '@supabase/supabase-js'
+
+type Calendar = Database['public']['Tables']['calendars']['Row'] & {
+  user_role: 'owner' | 'editor' | 'viewer'
+}
+type Profile = Database['public']['Tables']['profiles']['Row'] 
 
 interface DashboardProps {
   user: Profile
@@ -15,13 +19,14 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ user, onSignOut }: DashboardProps) {
-  const [calendars, setCalendars] = useState<CalendarType[]>([])
-  const [selectedCalendar, setSelectedCalendar] = useState<CalendarType | null>(null)
+  const [calendars, setCalendars] = useState<Calendar[]>([])
+  const [selectedCalendar, setSelectedCalendar] = useState<Calendar | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showInviteModal, setShowInviteModal] = useState(false)
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [error, setError] = useState<string | null>(null)
+  const [memberCounts, setMemberCounts] = useState<Record<string, number>>({})
 
   const fetchProfile = useCallback(async () => {
     if (!user?.id) return
@@ -109,17 +114,7 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
         `)
         .eq('user_id', user.id)
 
-      console.log('Fetch calendars result:', { data, error })
-
-      if (error) {
-        console.error('Fetch calendars error details:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        })
-        throw error
-      }
+      if (error) throw error
 
       // Get member counts for each calendar
       const calendarIds = (data as unknown as CalendarMemberWithCalendar[]).map(item => item.calendars.id)
@@ -131,13 +126,14 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
       if (countError) throw countError
 
       // Count members manually
-      const memberCountMap = new Map<string, number>()
+      const memberCountMap: Record<string, number> = {}
       ;(memberCounts as { calendar_id: string }[]).forEach(item => {
-        const currentCount = memberCountMap.get(item.calendar_id) || 0
-        memberCountMap.set(item.calendar_id, currentCount + 1)
+        memberCountMap[item.calendar_id] = (memberCountMap[item.calendar_id] || 0) + 1
       })
 
-      const formattedCalendars: CalendarType[] = (data as unknown as CalendarMemberWithCalendar[]).map(item => ({
+      setMemberCounts(memberCountMap)
+
+      const formattedCalendars: Calendar[] = (data as unknown as CalendarMemberWithCalendar[]).map(item => ({
         id: item.calendars.id,
         name: item.calendars.name,
         description: item.calendars.description,
@@ -146,20 +142,12 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
         created_at: item.calendars.created_at,
         updated_at: item.calendars.created_at,
         user_role: item.role,
-        creator_profile: item.calendars.profiles,
-        member_count: memberCountMap.get(item.calendars.id) || 1
+        creator_profile: item.calendars.profiles
       }))
 
-      console.log('Formatted calendars:', formattedCalendars)
       setCalendars(formattedCalendars)
     } catch (error: unknown) {
-      console.error('Error fetching calendars:', {
-        error,
-        message: error instanceof Error ? error.message : 'Unknown error',
-        details: error instanceof PostgrestError ? error.details : undefined,
-        hint: error instanceof PostgrestError ? error.hint : undefined,
-        code: error instanceof PostgrestError ? error.code : undefined
-      })
+      console.error('Error fetching calendars:', error)
     } finally {
       setLoading(false)
     }
@@ -382,18 +370,31 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
                     <div className="flex items-start space-x-4">
                       <div
                         className="h-12 w-12 rounded-lg flex items-center justify-center flex-shrink-0"
-                        style={{ backgroundColor: calendar.color }}
+                        style={{ backgroundColor: calendar.color || '#6B7280' }}
                       >
                         <Calendar className="h-6 w-6 text-white" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-medium text-gray-900 truncate">{calendar.name}</h3>
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-lg font-medium text-gray-900 truncate">{calendar.name}</h3>
+                          <div
+                            className={`ml-2 px-2 py-1 rounded-full text-xs font-medium text-white ${
+                              calendar.user_role === 'owner' 
+                                ? 'bg-indigo-500/70' 
+                                : calendar.user_role === 'editor'
+                                ? 'bg-blue-400/70'
+                                : 'bg-gray-500/70'
+                            }`}
+                          >
+                            {calendar.user_role}
+                          </div>
+                        </div>
                         <p className="mt-1 text-sm text-gray-500 line-clamp-2">
                           {calendar.description || 'No description'}
                         </p>
                         <div className="mt-4 flex items-center text-sm text-gray-500">
                           <Users className="h-4 w-4 mr-1" />
-                          <span>{calendar.member_count} members</span>
+                          <span>{memberCounts[calendar.id] || 0} members</span>
                         </div>
                       </div>
                     </div>
@@ -413,12 +414,25 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
                           <div className="flex items-center space-x-3">
                             <div
                               className="h-8 w-8 rounded-full flex items-center justify-center"
-                              style={{ backgroundColor: calendar.color }}
+                              style={{ backgroundColor: calendar.color || '#6B7280' }}
                             >
                               <Calendar className="h-4 w-4 text-white" />
                             </div>
                             <div className="text-left">
-                              <p className="text-sm font-medium text-gray-900">{calendar.name}</p>
+                              <div className="flex items-center">
+                                <p className="text-sm font-medium text-gray-900">{calendar.name}</p>
+                                <div
+                                  className={`ml-2 px-2 py-1 rounded-full text-xs font-medium text-white ${
+                                    calendar.user_role === 'owner' 
+                                      ? 'bg-indigo-500/70' 
+                                      : calendar.user_role === 'editor'
+                                      ? 'bg-blue-400/70'
+                                      : 'bg-gray-500/70'
+                                  }`}
+                                >
+                                  {calendar.user_role}
+                                </div>
+                              </div>
                               <p className="text-sm text-gray-500">
                                 {calendar.description || 'No description'}
                               </p>
@@ -427,7 +441,9 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
                           <div className="flex items-center space-x-4">
                             <div className="flex items-center text-sm text-gray-500">
                               <Users className="h-4 w-4 mr-1" />
-                              <span>{calendar.member_count}</span>
+                              <span>{memberCounts[calendar.id]}</span>
+                              <span className="mx-2">•</span>
+                              <span className="capitalize">{calendar.user_role}</span>
                             </div>
                             <div className="text-gray-400">
                               <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -455,12 +471,6 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
         <CreateCalendarModal
           onClose={() => setShowCreateModal(false)}
           onCreate={handleCreateCalendar}
-        />
-      )}
-      {showInviteModal && selectedCalendar && (
-        <InviteModal
-          calendar={selectedCalendar}
-          onClose={() => setShowInviteModal(false)}
         />
       )}
     </div>

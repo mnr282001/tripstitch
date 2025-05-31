@@ -1,13 +1,18 @@
 "use client"
 
 import { useState, useEffect, useCallback } from 'react'
-import { ArrowLeft, Plus, X, Clock, Users, Trash2 } from 'lucide-react'
+import { ArrowLeft, Plus, X, Clock, Trash2, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import type { Calendar, Event, Profile } from '@/types/database'
-import InviteModal from './InviteModal'
+import type { Database } from '@/types/database.types'
 
 // Add isDevelopment check
 const isDevelopment = process.env.NODE_ENV === 'development'
+
+type Calendar = Database['public']['Tables']['calendars']['Row']
+type Profile = Database['public']['Tables']['profiles']['Row']
+type Event = Database['public']['Tables']['events']['Row'] & {
+  creator_profile?: Profile
+}
 
 interface CalendarViewProps {
   calendar: Calendar
@@ -17,12 +22,12 @@ interface CalendarViewProps {
 
 export default function CalendarView({ calendar, user, onBack }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [events, setEvents] = useState<Event[]>([])
   const [showAddModal, setShowAddModal] = useState(false)
-  const [showInviteModal, setShowInviteModal] = useState(false)
-  const [showAllActivitiesModal, setShowAllActivitiesModal] = useState(false)
-  const [selectedColor, setSelectedColor] = useState<string | null>(null)
+  const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedColor, setSelectedColor] = useState<string | null>(null)
+  const [showAllActivitiesModal, setShowAllActivitiesModal] = useState(false)
   const [editingEvent, setEditingEvent] = useState<Event | null>(null)
   const [newEvent, setNewEvent] = useState({
     title: '',
@@ -140,9 +145,9 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
       description: event.description || '',
       startDate: event.start_date,
       endDate: event.end_date,
-      time: event.time,
-      duration: event.duration,
-      isMultiDay: event.is_multi_day,
+      time: event.time || '09:00',
+      duration: event.duration || 30,
+      isMultiDay: event.is_multi_day || false,
       color: event.color
     })
     setShowAddModal(true)
@@ -225,7 +230,7 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
 
     let displayTitle = event.title
     if (isStart) {
-      displayTitle = `${event.title} (${formatTime(event.time)})`
+      displayTitle = `${event.title} (${formatTime(event.time || '09:00')})`
     } else if (isMiddle) {
       displayTitle = event.title
     } else if (isEnd) {
@@ -282,7 +287,7 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
 
   const uniqueColors = Array.from(new Set(events.map(event => event.color)))
   const colorCounts = uniqueColors.reduce((acc, color) => {
-    acc[color] = events.filter(event => event.color === color).length
+    acc[color || ''] = events.filter(event => event.color === color).length
     return acc
   }, {} as Record<string, number>)
 
@@ -314,15 +319,6 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
               <h1 className="text-xl font-semibold text-gray-900">{calendar.name}</h1>
             </div>
             <div className="flex items-center space-x-4">
-              {isDevelopment && (
-                <button
-                  onClick={() => setShowInviteModal(true)}
-                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  <Users className="h-4 w-4 mr-2" />
-                  Invite
-                </button>
-              )}
               <button
                 onClick={() => setShowAddModal(true)}
                 className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -413,7 +409,7 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
                                   className={`text-xs p-1 rounded truncate cursor-pointer ${
                                     isStart ? 'rounded-l-none' : ''
                                   } ${isEnd ? 'rounded-r-none' : ''}`}
-                                  style={{ backgroundColor: event.color }}
+                                  style={{ backgroundColor: event.color || '#6B7280' }}
                                 >
                                   {displayTitle}
                                 </div>
@@ -456,7 +452,7 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
                       <div key={event.id} className="flex items-start space-x-3">
                         <div
                           className="h-2 w-2 rounded-full mt-2"
-                          style={{ backgroundColor: event.color }}
+                          style={{ backgroundColor: event.color || '#6B7280' }}
                         />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-900 truncate">
@@ -465,7 +461,7 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
                           <div className="mt-1 flex items-center text-xs text-gray-500">
                             <Clock className="h-3 w-3 mr-1" />
                             <span>
-                              {new Date(event.start_date).toLocaleDateString()} at {formatTime(event.time)}
+                              {new Date(event.start_date).toLocaleDateString()} at {formatTime(event.time || '09:00')}
                             </span>
                           </div>
                           {event.creator_profile && (
@@ -583,7 +579,7 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
                     <input
                       type="color"
                       id="color"
-                      value={newEvent.color}
+                      value={newEvent.color || '#6B7280'}
                       onChange={(e) => setNewEvent({ ...newEvent, color: e.target.value })}
                       className="mt-1 block w-full h-10 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                     />
@@ -650,13 +646,6 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
         </div>
       )}
 
-      {showInviteModal && (
-        <InviteModal
-          calendar={calendar}
-          onClose={() => setShowInviteModal(false)}
-        />
-      )}
-
       {/* All Activities Modal */}
       {showAllActivitiesModal && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
@@ -698,8 +687,8 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
                         className={`w-6 h-6 rounded-full border-2 ${
                           filterColor === color ? 'border-gray-900' : 'border-transparent'
                         }`}
-                        style={{ backgroundColor: color }}
-                        title={`${colorCounts[color]} events`}
+                        style={{ backgroundColor: color || '#6B7280' }}
+                        title={`${colorCounts[color || '']} events`}
                       />
                     ))}
                   </div>
@@ -732,7 +721,7 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
                     >
                       <div
                         className="h-2 w-2 rounded-full mt-2"
-                        style={{ backgroundColor: event.color }}
+                        style={{ backgroundColor: event.color || '#6B7280' }}
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
@@ -759,7 +748,7 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
                         <div className="mt-1 flex items-center text-xs text-gray-500">
                           <Clock className="h-3 w-3 mr-1" />
                           <span>
-                            {new Date(event.start_date).toLocaleDateString()} at {formatTime(event.time)}
+                            {new Date(event.start_date).toLocaleDateString()} at {formatTime(event.time || '09:00')}
                           </span>
                         </div>
                         {event.description && (
