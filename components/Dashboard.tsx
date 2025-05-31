@@ -25,7 +25,6 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  const [error, setError] = useState<string | null>(null)
   const [memberCounts, setMemberCounts] = useState<Record<string, number>>({})
 
   const fetchProfile = useCallback(async () => {
