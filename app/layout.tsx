@@ -15,6 +15,13 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'TripStitch - Collaborative Trip Planning',
   description: 'Stitch your travel plans together with friends and family',
+  icons: {
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/icon.png', type: 'image/png' },
+    ],
+    apple: '/apple-icon.png',
+  },
 }
 
 export default function RootLayout({
