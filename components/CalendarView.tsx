@@ -25,7 +25,7 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
   const [showAddModal, setShowAddModal] = useState(false)
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedColor, setSelectedColor] = useState<string | null>(null)
+  // const [selectedColor, setSelectedColor] = useState<string | null>(null)
   const [showAllActivitiesModal, setShowAllActivitiesModal] = useState(false)
   const [editingEvent, setEditingEvent] = useState<Event | null>(null)
   const [newEvent, setNewEvent] = useState({
@@ -361,7 +361,7 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
                       </svg>
                     </button>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  {/* <div className="flex items-center space-x-2">
                     {['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'].map((color) => (
                       <button
                         key={color}
@@ -372,7 +372,7 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
                         style={{ backgroundColor: color }}
                       />
                     ))}
-                  </div>
+                  </div> */}
                 </div>
               </div>
 
