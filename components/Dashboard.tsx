@@ -18,6 +18,26 @@ interface DashboardProps {
   onSignOut: () => void
 }
 
+// Add CalendarInvite type
+export interface CalendarInvite {
+  id: string;
+  calendar_id: string;
+  email: string;
+  role: string;
+  invited_by: string;
+  created_at: string;
+  accepted_at: string | null;
+  rejected_at: string | null;
+  expires_at: string | null;
+  token: string;
+  calendars?: {
+    id: string;
+    name: string;
+    description: string | null;
+    color: string | null;
+  };
+}
+
 export default function Dashboard({ user, onSignOut }: DashboardProps) {
   const [calendars, setCalendars] = useState<Calendar[]>([])
   const [selectedCalendar, setSelectedCalendar] = useState<Calendar | null>(null)
@@ -26,7 +46,7 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [memberCounts, setMemberCounts] = useState<Record<string, number>>({})
-  const [pendingInvites, setPendingInvites] = useState<any[]>([])
+  const [pendingInvites, setPendingInvites] = useState<CalendarInvite[]>([])
   const [invitesLoading, setInvitesLoading] = useState(true)
   const [showInvitesSidebar, setShowInvitesSidebar] = useState(true)
 
@@ -168,6 +188,7 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
         .order('created_at', { ascending: false })
       if (error) throw error
       setPendingInvites(data || [])
+      console.log('pendingInvites:', data)
     } catch (e) {
       setPendingInvites([])
     } finally {
@@ -276,8 +297,9 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
         acc[invite.calendar_id] = invite;
       }
       return acc;
-    }, {} as Record<string, any>)
-  ) as any[];
+    }, {} as Record<string, CalendarInvite>)
+  ) as CalendarInvite[];
+  console.log('uniquePendingInvites:', uniquePendingInvites)
   // Filter out invites for calendars where the user is already a member
   const memberCalendarIds = new Set(calendars.map(c => c.id));
   const filteredPendingInvites = uniquePendingInvites.filter(
@@ -285,7 +307,7 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
   );
 
   // Accept invite handler
-  const handleAcceptInvite = async (invite: any) => {
+  const handleAcceptInvite = async (invite: CalendarInvite) => {
     // Add to calendar_members if not already a member
     const { data: existingMember } = await supabase
       .from('calendar_members')
@@ -313,7 +335,7 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
   };
 
   // Reject invite handler
-  const handleRejectInvite = async (invite: any) => {
+  const handleRejectInvite = async (invite: CalendarInvite) => {
     await supabase
       .from('calendar_invitations')
       .update({ rejected_at: new Date().toISOString() })
