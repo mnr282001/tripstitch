@@ -190,6 +190,7 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
       setPendingInvites(data || [])
       console.log('pendingInvites:', data)
     } catch (e) {
+      console.log('Error fetching pending invites:', e)
       setPendingInvites([])
     } finally {
       setInvitesLoading(false)
