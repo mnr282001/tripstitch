@@ -367,6 +367,7 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
       <CalendarView
         calendar={selectedCalendar}
         user={user}
+        userRole={(selectedCalendar as Calendar).user_role}
         onBack={() => setSelectedCalendar(null)}
       />
     )
@@ -472,6 +473,7 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
             <CalendarView
               calendar={selectedCalendar}
               user={user}
+              userRole={(selectedCalendar as Calendar).user_role}
               onBack={() => setSelectedCalendar(null)}
             />
           ) : (

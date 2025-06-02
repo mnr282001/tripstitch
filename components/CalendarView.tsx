@@ -17,10 +17,11 @@ type Event = Database['public']['Tables']['events']['Row'] & {
 interface CalendarViewProps {
   calendar: Calendar
   user: Profile
+  userRole: 'owner' | 'editor' | 'viewer'
   onBack: () => void
 }
 
-export default function CalendarView({ calendar, user, onBack }: CalendarViewProps) {
+export default function CalendarView({ calendar, user, userRole, onBack }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [showAddModal, setShowAddModal] = useState(false)
   const [showInviteModal, setShowInviteModal] = useState(false)
@@ -368,20 +369,24 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
               <h1 className="text-xl font-semibold text-gray-900">{calendar.name}</h1>
             </div>
             <div className="flex items-center space-x-4">
-              <button
-                onClick={() => setShowInviteModal(true)}
-                className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                <Share2 className="h-4 w-4 mr-2" />
-                Invite
-              </button>
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Event
-              </button>
+              {userRole !== 'viewer' && (
+                <button
+                  onClick={() => setShowInviteModal(true)}
+                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  <Share2 className="h-4 w-4 mr-2" />
+                  Invite
+                </button>
+              )}
+              {userRole !== 'viewer' && (
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Event
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -538,7 +543,7 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
       </main>
 
       {/* Modals */}
-      {showAddModal && (
+      {showAddModal && userRole !== 'viewer' && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
             <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
@@ -785,20 +790,24 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
                             {event.title}
                           </p>
                           <div className="flex items-center space-x-2">
-                            <button
-                              onClick={() => handleEditEvent(event)}
-                              className="text-gray-600 hover:text-gray-900"
-                            >
-                              <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => handleDeleteEvent(event)}
-                              className="text-red-600 hover:text-red-900"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                            {userRole !== 'viewer' && (
+                              <button
+                                onClick={() => handleEditEvent(event)}
+                                className="text-gray-600 hover:text-gray-900"
+                              >
+                                <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                  <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                </svg>
+                              </button>
+                            )}
+                            {userRole !== 'viewer' && (
+                              <button
+                                onClick={() => handleDeleteEvent(event)}
+                                className="text-red-600 hover:text-red-900"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
                           </div>
                         </div>
                         <div className="mt-1 flex items-center text-xs text-gray-500">
