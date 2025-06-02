@@ -430,13 +430,13 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
                       <div className="flex space-x-2">
                         <button
                           onClick={() => handleAcceptInvite(invite)}
-                          className="px-3 py-1 rounded bg-green-600 text-white text-xs hover:bg-green-700"
+                          className="px-3 py-1 rounded border border-green-200 bg-green-50 text-green-700 text-xs hover:bg-green-100 transition"
                         >
                           Accept
                         </button>
                         <button
                           onClick={() => handleRejectInvite(invite)}
-                          className="px-3 py-1 rounded bg-red-500 text-white text-xs hover:bg-red-600"
+                          className="px-3 py-1 rounded border border-red-200 bg-red-50 text-red-700 text-xs hover:bg-red-100 transition"
                         >
                           Reject
                         </button>
