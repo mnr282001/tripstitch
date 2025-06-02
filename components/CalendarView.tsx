@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from 'react'
-import { ArrowLeft, Plus, X, Clock, Trash2, Users } from 'lucide-react'
+import { ArrowLeft, Plus, X, Clock, Trash2, Users, Share2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/types/database.types'
 
@@ -23,6 +23,10 @@ interface CalendarViewProps {
 export default function CalendarView({ calendar, user, onBack }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showInviteModal, setShowInviteModal] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteRole, setInviteRole] = useState<'editor' | 'viewer'>('viewer')
+  const [inviteLoading, setInviteLoading] = useState(false)
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   // const [selectedColor, setSelectedColor] = useState<string | null>(null)
@@ -291,6 +295,51 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
     return acc
   }, {} as Record<string, number>)
 
+  const handleInvite = async () => {
+    if (!inviteEmail) return
+    
+    setInviteLoading(true)
+    try {
+      // Generate a unique token
+      const token = crypto.randomUUID()
+
+      const { error } = await supabase
+        .from('calendar_invitations')
+        .insert({
+          calendar_id: calendar.id,
+          email: inviteEmail,
+          invited_by: user.id,
+          role: inviteRole,
+          token,
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days expiry
+        })
+
+      if (error) throw error
+
+      // Create the invitation link
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
+      const inviteLink = `${baseUrl}`
+
+      // Send the invitation email via API
+      const res = await fetch('/api/send-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: inviteEmail, link: inviteLink }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to send email')
+
+      alert(`Invitation sent successfully to ${inviteEmail}!`)
+      setShowInviteModal(false)
+      setInviteEmail('')
+    } catch (error) {
+      console.error('Error sending invitation:', error)
+      alert('Error sending invitation. Please try again.')
+    } finally {
+      setInviteLoading(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -319,6 +368,13 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
               <h1 className="text-xl font-semibold text-gray-900">{calendar.name}</h1>
             </div>
             <div className="flex items-center space-x-4">
+              <button
+                onClick={() => setShowInviteModal(true)}
+                className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                <Share2 className="h-4 w-4 mr-2" />
+                Invite
+              </button>
               <button
                 onClick={() => setShowAddModal(true)}
                 className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -767,6 +823,80 @@ export default function CalendarView({ calendar, user, onBack }: CalendarViewPro
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Invite Modal */}
+      {showInviteModal && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
+            <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-gray-900">
+                  Invite to Calendar
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowInviteModal(false)
+                    setInviteEmail('')
+                  }}
+                  className="text-gray-400 hover:text-gray-500"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+            <div className="px-4 py-5 sm:p-6">
+              <form onSubmit={(e) => { e.preventDefault(); handleInvite(); }} className="space-y-4">
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="role" className="block text-sm font-medium text-gray-700">
+                    Role
+                  </label>
+                  <select
+                    id="role"
+                    value={inviteRole}
+                    onChange={(e) => setInviteRole(e.target.value as 'editor' | 'viewer')}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  >
+                    <option value="viewer">Viewer</option>
+                    <option value="editor">Editor</option>
+                  </select>
+                </div>
+                <div className="flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowInviteModal(false)
+                      setInviteEmail('')
+                    }}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={inviteLoading}
+                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                  >
+                    {inviteLoading ? 'Sending...' : 'Send Invitation'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>
