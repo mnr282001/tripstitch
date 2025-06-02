@@ -32,7 +32,8 @@ const AppContainer = () => {
     return () => subscription.unsubscribe()
   }, [])
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
     setUser(null)
   }
 
